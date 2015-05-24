@@ -2760,7 +2760,7 @@ if __name__=='__main__':
         x = f.read()
         f.close()
     else:
-        x = 'var Hello = "World!"'
+        x = 'var $ = "Hello!"'
     p = PyJsParser()
     t = time.time()
     res = p.parse(x)
