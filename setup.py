@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='pyjsparser',
-    version='2.2.1',
+    version='2.2.2',
     packages=['pyjsparser'],
     url='https://github.com/PiotrDabkowski/pyjsparser',
     license='MIT',

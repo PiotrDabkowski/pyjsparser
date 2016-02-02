@@ -3,6 +3,11 @@ import sys
 import unicodedata
 from collections import defaultdict
 
+PY3 = sys.version_info >= (3,0)
+if PY3:
+    unichr = chr
+    xrange = range
+    unicode = str
 
 token = {
         'BooleanLiteral': 1,
@@ -18,7 +23,10 @@ token = {
     }
 
 
-TokenName = {v:k for k,v in token.iteritems()}
+if PY3:
+    TokenName = {v:k for k,v in token.items()}
+else:
+    TokenName = {v:k for k,v in token.iteritems()}
 
 FnExprTokens = ['(', '{', '[', 'in', 'typeof', 'instanceof', 'new',
                     'return', 'case', 'delete', 'throw', 'void',
@@ -267,3 +275,4 @@ if __name__=='__main__':
     assert isIdentifierStart('$')
     assert isIdentifierStart(100)
     assert isWhiteSpace(' ')
+

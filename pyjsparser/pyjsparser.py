@@ -21,9 +21,14 @@
   # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
   # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import unicode_literals
-from pyjsparserdata import *
-from std_node import *
-from pprint import pprint
+from .pyjsparserdata import *
+from .std_node import *
+import logging
+import sys
+
+PY3 = sys.version_info >= (3,0)
+if PY3:
+    unicode = str
 
 ESPRIMA_VERSION = '2.2.0'
 DEBUG = False
@@ -43,10 +48,6 @@ class PyJsParser:
     """
     def __init__(self):
         self.clean()
-
-    def test(self, code):
-        pprint(self.parse(code))
-
 
     def clean(self):
         self.strict = None
@@ -188,9 +189,8 @@ class PyJsParser:
     def log_err_case(self):
         if not DEBUG:
             return
-        print 'INDEX', self.index
-        print self.source[self.index-10:self.index+10]
-        print
+        logging.debug('INDEX %s' % self.index)
+        logging.debug(self.source[self.index-10:self.index+10])
 
     def at(self, loc):
         return None if loc>=self.length else self.source[loc]
@@ -1968,7 +1968,7 @@ class PyJsParser:
         elif ((not options['inFor'] and d.type != Syntax.Identifier) or self.match('=')):
             self.expect('=');
             init = self.isolateCoverGrammar(self.parseAssignmentExpression);
-        return node.finishVariableDeclarator(d, init)
+        return node.finishVariableDeclarator(id, init)
 
     def parseBindingList(self, kind, options):
         list = [];
@@ -2766,12 +2766,15 @@ if __name__=='__main__':
     res = p.parse(x)
     dt = time.time() - t+ 0.000000001
     if test_path:
-        print len(res)
+        print(len(res))
     else:
+        from pprint import pprint
         pprint(res)
-    print
-    print 'Parsed everyting in', round(dt,5), 'seconds.'
-    print 'Thats %d characters per second' % int(len(x)/dt)
+
+    print()
+    print('Parsed everyting in', round(dt,5), 'seconds.')
+    print('Thats %d characters per second' % int(len(x)/dt))
+
 
 
 

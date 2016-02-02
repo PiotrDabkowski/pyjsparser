@@ -1,4 +1,4 @@
-from pyjsparserdata import *
+from .pyjsparserdata import *
  
 
 class BaseNode:
