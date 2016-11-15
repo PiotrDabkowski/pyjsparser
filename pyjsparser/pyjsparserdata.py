@@ -1,9 +1,30 @@
+# The MIT License
+#
+# Copyright 2014, 2015 Piotr Dabkowski
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the 'Software'),
+# to deal in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so, subject
+# to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+# LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+#  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 from __future__ import unicode_literals
+
 import sys
 import unicodedata
 from collections import defaultdict
 
 PY3 = sys.version_info >= (3,0)
+
 if PY3:
     unichr = chr
     xrange = range
@@ -23,10 +44,7 @@ token = {
     }
 
 
-if PY3:
-    TokenName = {v:k for k,v in token.items()}
-else:
-    TokenName = {v:k for k,v in token.iteritems()}
+TokenName = dict((v,k) for k,v in token.items())
 
 FnExprTokens = ['(', '{', '[', 'in', 'typeof', 'instanceof', 'new',
                     'return', 'case', 'delete', 'throw', 'void',
@@ -38,7 +56,7 @@ FnExprTokens = ['(', '{', '[', 'in', 'typeof', 'instanceof', 'new',
                     '|', '^', '!', '~', '&&', '||', '?', ':', '===', '==', '>=',
                     '<=', '<', '>', '!=', '!==']
 
-syntax= {'AssignmentExpression',
+syntax= set(('AssignmentExpression',
          'AssignmentPattern',
          'ArrayExpression',
          'ArrayPattern',
@@ -99,7 +117,7 @@ syntax= {'AssignmentExpression',
          'VariableDeclaration',
          'VariableDeclarator',
          'WhileStatement',
-         'WithStatement'}
+         'WithStatement'))
 
 
 # Error messages should be identical to V8.
@@ -211,9 +229,17 @@ UNICODE_LETTER = set(U_CATEGORIES['Lu']+U_CATEGORIES['Ll']+
 UNICODE_COMBINING_MARK = set(U_CATEGORIES['Mn']+U_CATEGORIES['Mc'])
 UNICODE_DIGIT = set(U_CATEGORIES['Nd'])
 UNICODE_CONNECTOR_PUNCTUATION = set(U_CATEGORIES['Pc'])
-IDENTIFIER_START = UNICODE_LETTER.union({'$','_'}) # and some fucking unicode escape sequence
-IDENTIFIER_PART = IDENTIFIER_START.union(UNICODE_COMBINING_MARK).union(UNICODE_DIGIT).union(UNICODE_CONNECTOR_PUNCTUATION).union({ZWJ, ZWNJ})
+IDENTIFIER_START = UNICODE_LETTER.union(set(('$','_', '\\'))) # and some fucking unicode escape sequence
+IDENTIFIER_PART = IDENTIFIER_START.union(UNICODE_COMBINING_MARK).union(UNICODE_DIGIT)\
+    .union(UNICODE_CONNECTOR_PUNCTUATION).union(set((ZWJ, ZWNJ)))
 
+WHITE_SPACE = set((0x20, 0x09, 0x0B, 0x0C, 0xA0, 0x1680,
+               0x180E, 0x2000, 0x2001, 0x2002, 0x2003,
+                0x2004, 0x2005, 0x2006, 0x2007, 0x2008,
+                0x2009, 0x200A, 0x202F, 0x205F, 0x3000,
+                0xFEFF))
+
+LINE_TERMINATORS = set((0x0A, 0x0D, 0x2028, 0x2029))
 
 def isIdentifierStart(ch):
     return (ch if isinstance(ch, unicode) else unichr(ch))  in IDENTIFIER_START
@@ -222,19 +248,15 @@ def isIdentifierPart(ch):
     return (ch if isinstance(ch, unicode) else unichr(ch))  in IDENTIFIER_PART
 
 def isWhiteSpace(ch):
-    return (ord(ch) if isinstance(ch, unicode) else ch) in {0x20, 0x09, 0x0B, 0x0C, 0xA0, 0x1680,
-                                                            0x180E, 0x2000, 0x2001, 0x2002, 0x2003,
-                                                            0x2004, 0x2005, 0x2006, 0x2007, 0x2008,
-                                                            0x2009, 0x200A, 0x202F, 0x205F, 0x3000,
-                                                            0xFEFF}
+    return (ord(ch) if isinstance(ch, unicode) else ch) in WHITE_SPACE
 
 def isLineTerminator(ch):
-    return (ord(ch) if isinstance(ch, unicode) else ch)  in {0x0A, 0x0D, 0x2028, 0x2029}
+    return (ord(ch) if isinstance(ch, unicode) else ch)  in LINE_TERMINATORS
 
-OCTAL = {'0', '1', '2', '3', '4', '5', '6', '7'}
-DEC = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+OCTAL = set(('0', '1', '2', '3', '4', '5', '6', '7'))
+DEC = set(('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'))
 HEX = set('0123456789abcdefABCDEF')
-HEX_CONV = {'0123456789abcdef'[n]:n for n in xrange(16)}
+HEX_CONV = dict(('0123456789abcdef'[n],n) for n in xrange(16))
 for i,e in enumerate('ABCDEF', 10):
     HEX_CONV[e] = i
 
@@ -249,22 +271,26 @@ def isOctalDigit(ch):
     return (ch if isinstance(ch, unicode) else unichr(ch))  in OCTAL
 
 def isFutureReservedWord(w):
-    return w in { 'enum', 'export', 'import', 'super'}
+    return w in ('enum', 'export', 'import', 'super')
 
+
+RESERVED_WORD = set(('implements', 'interface', 'package', 'private', 'protected', 'public', 'static', 'yield', 'let'))
 def isStrictModeReservedWord(w):
-    return w in {'implements', 'interface', 'package', 'private', 'protected', 'public', 'static', 'yield', 'let'}
+    return w in RESERVED_WORD
 
 def isRestrictedWord(w):
-    return w in  {'eval', 'arguments'}
+    return w in  ('eval', 'arguments')
 
+
+KEYWORDS = set(('if', 'in', 'do', 'var', 'for', 'new', 'try', 'let', 'this', 'else', 'case',
+                     'void', 'with', 'enum', 'while', 'break', 'catch', 'throw', 'const', 'yield',
+                     'class', 'super', 'return', 'typeof', 'delete', 'switch', 'export', 'import',
+                     'default', 'finally', 'extends', 'function', 'continue', 'debugger', 'instanceof', 'pyimport'))
 def isKeyword(w):
         # 'const' is specialized as Keyword in V8.
         # 'yield' and 'let' are for compatibility with SpiderMonkey and ES.next.
         # Some others are from future reserved words.
-        return w in {'if', 'in', 'do', 'var', 'for', 'new', 'try', 'let', 'this', 'else', 'case',
-                     'void', 'with', 'enum', 'while', 'break', 'catch', 'throw', 'const', 'yield',
-                     'class', 'super', 'return', 'typeof', 'delete', 'switch', 'export', 'import',
-                     'default', 'finally', 'extends', 'function', 'continue', 'debugger', 'instanceof'}
+        return w in KEYWORDS
 
 
 class JsSyntaxError(Exception): pass
@@ -275,4 +301,3 @@ if __name__=='__main__':
     assert isIdentifierStart('$')
     assert isIdentifierStart(100)
     assert isWhiteSpace(' ')
-

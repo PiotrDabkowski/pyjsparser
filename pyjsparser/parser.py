@@ -21,13 +21,16 @@ from __future__ import unicode_literals
 from .pyjsparserdata import *
 from .std_nodes import *
 from pprint import pprint
+import sys
 
-REGEXP_SPECIAL_SINGLE = {'\\', '^', '$', '*', '+', '?', '.', '[', ']', '(', ')', '{', '{', '|', '-'}
+__all__ = ['PyJsParser', 'parse', 'ENABLE_JS2PY_ERRORS', 'ENABLE_PYIMPORT', 'JsSyntaxError']
+REGEXP_SPECIAL_SINGLE = ('\\', '^', '$', '*', '+', '?', '.', '[', ']', '(', ')', '{', '{', '|', '-')
 ENABLE_PYIMPORT = False
+ENABLE_JS2PY_ERRORS = False
 
-import six
+PY3 = sys.version_info >= (3,0)
 
-if six.PY3:
+if PY3:
     basestring = str
     long = int
     xrange = range
@@ -299,7 +302,7 @@ class PyJsParser:
         elif st == '}':
             self.index += 1
             self.state['curlyStack'].pop()
-        elif st in {'.', '(', ')', ';', ',', '[', ']', ':', '?', '~'}:
+        elif st in ('.', '(', ')', ';', ',', '[', ']', ':', '?', '~'):
             self.index += 1
         else:
             # 4-character punctuator.
@@ -309,18 +312,18 @@ class PyJsParser:
             else:
                 # 3-character punctuators.
                 st = st[0:3]
-                if st in {'===', '!==', '>>>', '<<=', '>>='}:
+                if st in ('===', '!==', '>>>', '<<=', '>>='):
                     self.index += 3
                 else:
                     # 2-character punctuators.
                     st = st[0:2]
-                    if st in {'&&', '||', '==', '!=', '+=', '-=', '*=', '/=', '++', '--', '<<', '>>', '&=', '|=', '^=',
-                              '%=', '<=', '>=', '=>'}:
+                    if st in ('&&', '||', '==', '!=', '+=', '-=', '*=', '/=', '++', '--', '<<', '>>', '&=', '|=', '^=',
+                              '%=', '<=', '>=', '=>'):
                         self.index += 2
                     else:
                         # 1-character punctuators.
                         st = self.source[self.index]
-                        if st in {'<', '>', '=', '!', '+', '-', '*', '%', '&', '|', '^', '/'}:
+                        if st in ('<', '>', '=', '!', '+', '-', '*', '%', '&', '|', '^', '/'):
                             self.index += 1
         if self.index == token['start']:
             self.throwUnexpectedToken()
@@ -850,7 +853,7 @@ class PyJsParser:
         return self.scanRegExp()
 
     def isIdentifierName(self, token):
-        return token['type'] in {1, 3, 4, 5}
+        return token['type'] in (1, 3, 4, 5)
 
     # def advanceSlash(self): ???
 
@@ -959,14 +962,21 @@ class PyJsParser:
         self.scanning = False
 
     def createError(self, line, pos, description):
-        self.log_err_case()
-        from js2py.base import ERRORS, Js, JsToPyException
-        error = ERRORS['SyntaxError']('Line ' + unicode(line) + ': ' + unicode(description))
-        error.put('index', Js(pos))
-        error.put('lineNumber', Js(line))
-        error.put('column', Js(pos - (self.lineStart if self.scanning else self.lastLineStart) + 1))
-        error.put('description', Js(description))
-        return JsToPyException(error)
+        if ENABLE_JS2PY_ERRORS:
+            self.log_err_case()
+            try:
+                from js2py.base import ERRORS, Js, JsToPyException
+            except:
+                raise Exception("ENABLE_JS2PY_ERRORS was set to True, but Js2Py was not found!")
+            error = ERRORS['SyntaxError']('Line ' + unicode(line) + ': ' + unicode(description))
+            error.put('index', Js(pos))
+            error.put('lineNumber', Js(line))
+            error.put('column', Js(pos - (self.lineStart if self.scanning else self.lastLineStart) + 1))
+            error.put('description', Js(description))
+            return JsToPyException(error)
+        else:
+            return JsSyntaxError('Line ' + unicode(line) + ': ' + unicode(description))
+
 
     # Throw an exception
 
@@ -1063,7 +1073,7 @@ class PyJsParser:
         if (self.lookahead['type'] != Token.Punctuator):
             return False;
         op = self.lookahead['value']
-        return op in {'=', '*=', '/=', '%=', '+=', '-=', '<<=', '>>=', '>>>=', '&=', '^=', '|='}
+        return op in ('=', '*=', '/=', '%=', '+=', '-=', '<<=', '>>=', '>>>=', '&=', '^=', '|=')
 
     def consumeSemicolon(self):
         # Catch the very common case first: immediately a semicolon (U+003B).
@@ -1279,7 +1289,7 @@ class PyJsParser:
             if self.strict and token.get('octal'):
                 self.tolerateUnexpectedToken(token, Messages.StrictOctalLiteral);
             return node.finishLiteral(token);
-        elif typ in {Token.Identifier, Token.BooleanLiteral, Token.NullLiteral, Token.Keyword}:
+        elif typ in (Token.Identifier, Token.BooleanLiteral, Token.NullLiteral, Token.Keyword):
             return node.finishIdentifier(token['value']);
         elif typ == Token.Punctuator:
             if (token['value'] == '['):
@@ -1290,8 +1300,8 @@ class PyJsParser:
 
     def lookaheadPropertyName(self):
         typ = self.lookahead['type']
-        if typ in {Token.Identifier, Token.StringLiteral, Token.BooleanLiteral, Token.NullLiteral, Token.NumericLiteral,
-                   Token.Keyword}:
+        if typ in (Token.Identifier, Token.StringLiteral, Token.BooleanLiteral, Token.NullLiteral, Token.NumericLiteral,
+                   Token.Keyword):
             return true
         if typ == Token.Punctuator:
             return self.lookahead['value'] == '['
@@ -1404,7 +1414,7 @@ class PyJsParser:
 
     def reinterpretExpressionAsPattern(self, expr):
         typ = (expr['type'])
-        if typ in {Syntax.Identifier, Syntax.MemberExpression, Syntax.RestElement, Syntax.AssignmentPattern}:
+        if typ in (Syntax.Identifier, Syntax.MemberExpression, Syntax.RestElement, Syntax.AssignmentPattern):
             pass
         elif typ == Syntax.SpreadElement:
             expr['type'] = Syntax.RestElement
@@ -1984,6 +1994,7 @@ class PyJsParser:
         return self.parseStatement();
 
     def parsePyimportStatement(self):
+        assert ENABLE_PYIMPORT
         n = Node()
         self.lex()
         n.finishPyimport(self.parseVariableIdentifier())
@@ -2855,6 +2866,14 @@ class PyJsParser:
         self.strict = false;
         program = self.parseProgram();
         return node_to_dict(program)
+
+
+
+def parse(javascript_code):
+    """Returns syntax tree of javascript_code.
+       Same as PyJsParser().parse  For your convenience :) """
+    p = PyJsParser()
+    return p.parse(javascript_code)
 
 
 if __name__ == '__main__':
