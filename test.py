@@ -1,0 +1,2 @@
+import pyjsparser
+assert pyjsparser.parse('var i;+9') == {'body': [{'kind': 'var', 'declarations': [{'init': None, 'type': u'VariableDeclarator', 'id': {'type': u'Identifier', 'name': u'i'}}], 'type': u'VariableDeclaration'}, {'type': u'ExpressionStatement', 'expression': {'operator': u'+', 'prefix': True, 'type': u'UnaryExpression', 'argument': {'raw': None, 'type': u'Literal', 'value': 9.0}}}], 'type': u'Program'}

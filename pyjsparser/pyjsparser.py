@@ -1,38 +1,41 @@
-  # Manual translation of esprima 2.2.0 to python 2.7. Translation to Python by Piotr Dabkowski
-  # GitHub:  https://github.com/PiotrDabkowski/pyjsparser
-  # Parser used in Js2Py project: https://github.com/PiotrDabkowski/Js2Py
-  #
-  # Copyright (c) jQuery Foundation, Inc. and Contributors, All Rights Reserved.
-  # Redistribution and use in source and binary forms, with or without
-  # modification, are permitted provided that the following conditions are met:
-  #   * Redistributions of source code must retain the above copyright
-  #     notice, this list of conditions and the following disclaimer.
-  #   * Redistributions in binary form must reproduce the above copyright
-  #     notice, this list of conditions and the following disclaimer in the
-  #     documentation and/or other materials provided with the distribution.
-  # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  # ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-  # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-  # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-  # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# The MIT License
+#
+# Copyright 2014, 2015 Piotr Dabkowski
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the 'Software'),
+# to deal in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so, subject
+# to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+# LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+#  OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 from __future__ import unicode_literals
 from .pyjsparserdata import *
-from .std_node import *
-import logging
-import sys
+from .std_nodes import *
+from pprint import pprint
 
-PY3 = sys.version_info >= (3,0)
-if PY3:
+REGEXP_SPECIAL_SINGLE = {'\\', '^', '$', '*', '+', '?', '.', '[', ']', '(', ')', '{', '{', '|', '-'}
+ENABLE_PYIMPORT = False
+
+import six
+
+if six.PY3:
+    basestring = str
+    long = int
+    xrange = range
     unicode = str
 
 ESPRIMA_VERSION = '2.2.0'
 DEBUG = False
-# Small naming converntion changes
+# Small naming convention changes
 # len -> leng
 # id -> d
 # type -> typ
@@ -41,13 +44,18 @@ true = True
 false = False
 null = None
 
+
 class PyJsParser:
     """ Usage:
         parser = PyJsParser()
         parser.parse('var JavaScriptCode = 5.1')
     """
+
     def __init__(self):
         self.clean()
+
+    def test(self, code):
+        pprint(self.parse(code))
 
     def clean(self):
         self.strict = None
@@ -89,7 +97,7 @@ class PyJsParser:
         while self.index < self.length:
             ch = ord(self.source[self.index])
             if isLineTerminator(ch):
-                if (ch == 0x0D and ord(self.source[self.index+1]) == 0x0A):
+                if (ch == 0x0D and ord(self.source[self.index + 1]) == 0x0A):
                     self.index += 1
                 self.lineNumber += 1
                 self.index += 1
@@ -97,7 +105,7 @@ class PyJsParser:
                 self.lineStart = self.index
             elif ch == 0x2A:
                 # Block comment ends with '*/'.
-                if ord(self.source[self.index+1]) == 0x2F:
+                if ord(self.source[self.index + 1]) == 0x2F:
                     self.index += 2
                     return
                 self.index += 1
@@ -107,7 +115,7 @@ class PyJsParser:
 
     def skipComment(self):
         self.hasLineTerminator = False
-        start = (self.index==0)
+        start = (self.index == 0)
         while self.index < self.length:
             ch = ord(self.source[self.index])
             if isWhiteSpace(ch):
@@ -120,8 +128,8 @@ class PyJsParser:
                 self.lineNumber += 1
                 self.lineStart = self.index
                 start = True
-            elif (ch == 0x2F): # U+002F is '/'
-                ch = ord(self.source[self.index+1])
+            elif (ch == 0x2F):  # U+002F is '/'
+                ch = ord(self.source[self.index + 1])
                 if (ch == 0x2F):
                     self.index += 2
                     self.skipSingleLineComment(2)
@@ -131,16 +139,16 @@ class PyJsParser:
                     self.skipMultiLineComment()
                 else:
                     break
-            elif (start and ch == 0x2D): # U+002D is '-'
+            elif (start and ch == 0x2D):  # U+002D is '-'
                 # U+003E is '>'
-                if (ord(self.source[self.index+1]) == 0x2D) and (ord(self.source[self.index+2]) == 0x3E):
+                if (ord(self.source[self.index + 1]) == 0x2D) and (ord(self.source[self.index + 2]) == 0x3E):
                     # '-->' is a single-line comment
                     self.index += 3
                     self.skipSingleLineComment(3)
                 else:
                     break
-            elif (ch == 0x3C): # U+003C is '<'
-                if self.source[self.index+1: self.index+4]=='!--':
+            elif (ch == 0x3C):  # U+003C is '<'
+                if self.source[self.index + 1: self.index + 4] == '!--':
                     # <!--
                     self.index += 4
                     self.skipSingleLineComment(4)
@@ -161,7 +169,6 @@ class PyJsParser:
                 return ''
         return unichr(code)
 
-
     def scanUnicodeCodePointEscape(self):
         ch = self.source[self.index]
         code = 0
@@ -181,22 +188,23 @@ class PyJsParser:
             return unichr(code)
         cu1 = ((code - 0x10000) >> 10) + 0xD800;
         cu2 = ((code - 0x10000) & 1023) + 0xDC00;
-        return unichr(cu1)+unichr(cu2)
+        return unichr(cu1) + unichr(cu2)
 
     def ccode(self, offset=0):
-        return ord(self.source[self.index+offset])
+        return ord(self.source[self.index + offset])
 
     def log_err_case(self):
         if not DEBUG:
             return
-        logging.debug('INDEX %s' % self.index)
-        logging.debug(self.source[self.index-10:self.index+10])
+        print('INDEX', self.index)
+        print(self.source[self.index - 10:self.index + 10])
+        print('')
 
     def at(self, loc):
-        return None if loc>=self.length else self.source[loc]
+        return None if loc >= self.length else self.source[loc]
 
     def substr(self, le, offset=0):
-        return self.source[self.index+offset:self.index+offset+le]
+        return self.source[self.index + offset:self.index + offset + le]
 
     def getEscapedIdentifier(self):
         d = self.source[self.index]
@@ -220,7 +228,7 @@ class PyJsParser:
 
             # '\u' (U+005C, U+0075) denotes an escaped character.
             if (ch == 0x5C):
-                d = d[0: len(d)-1]
+                d = d[0: len(d) - 1]
                 if (self.ccode() != 0x75):
                     self.throwUnexpectedToken()
                 self.index += 1
@@ -253,7 +261,7 @@ class PyJsParser:
 
         # There is no keyword or literal with only one character.
         # Thus, it must be an identifier.
-        if (len(d)==1):
+        if (len(d) == 1):
             type = Token.Identifier
         elif (isKeyword(d)):
             type = Token.Keyword
@@ -291,7 +299,7 @@ class PyJsParser:
         elif st == '}':
             self.index += 1
             self.state['curlyStack'].pop()
-        elif st in  {'.', '(', ')', ';', ',', '[', ']', ':', '?', '~'}:
+        elif st in {'.', '(', ')', ';', ',', '[', ']', ':', '?', '~'}:
             self.index += 1
         else:
             # 4-character punctuator.
@@ -306,7 +314,8 @@ class PyJsParser:
                 else:
                     # 2-character punctuators.
                     st = st[0:2]
-                    if st in {'&&','||','==','!=','+=','-=','*=' ,'/=' ,'++' , '--' , '<<', '>>', '&=', '|=', '^=', '%=', '<=', '>=', '=>'}:
+                    if st in {'&&', '||', '==', '!=', '+=', '-=', '*=', '/=', '++', '--', '<<', '>>', '&=', '|=', '^=',
+                              '%=', '<=', '>=', '=>'}:
                         self.index += 2
                     else:
                         # 1-character punctuators.
@@ -318,7 +327,6 @@ class PyJsParser:
         token['end'] = self.index;
         token['value'] = st
         return token
-
 
     # 7.8.3 Numeric Literals
 
@@ -355,7 +363,7 @@ class PyJsParser:
             self.throwUnexpectedToken()
         if (self.index < self.length):
             ch = self.source[self.index]
-             # istanbul ignore else
+            # istanbul ignore else
             if (isIdentifierStart(ch) or isDecimalDigit(ch)):
                 self.throwUnexpectedToken();
         return {
@@ -365,7 +373,6 @@ class PyJsParser:
             'lineStart': self.lineStart,
             'start': start,
             'end': self.index}
-
 
     def scanOctalLiteral(self, prefix, start):
         if isOctalDigit(prefix):
@@ -412,7 +419,6 @@ class PyJsParser:
         return {
             'code': code,
             'octal': octal}
-
 
     def isImplicitOctalLiteral(self):
         # Implicit octal, unless there is a non-octal digit.
@@ -486,12 +492,103 @@ class PyJsParser:
 
     # 7.8.4 String Literals
 
+    def _interpret_regexp(self, string, flags):
+        '''Perform sctring escape - for regexp literals'''
+        self.index = 0
+        self.length = len(string)
+        self.source = string
+        self.lineNumber = 0
+        self.lineStart = 0
+        octal = False
+        st = ''
+        inside_square = 0
+        while (self.index < self.length):
+            template = '[%s]' if not inside_square else '%s'
+            ch = self.source[self.index]
+            self.index += 1
+            if ch == '\\':
+                ch = self.source[self.index]
+                self.index += 1
+                if (not isLineTerminator(ch)):
+                    if ch == 'u':
+                        digs = self.source[self.index:self.index + 4]
+                        if len(digs) == 4 and all(isHexDigit(d) for d in digs):
+                            st += template % unichr(int(digs, 16))
+                            self.index += 4
+                        else:
+                            st += 'u'
+                    elif ch == 'x':
+                        digs = self.source[self.index:self.index + 2]
+                        if len(digs) == 2 and all(isHexDigit(d) for d in digs):
+                            st += template % unichr(int(digs, 16))
+                            self.index += 2
+                        else:
+                            st += 'x'
+                    # special meaning - single char.
+                    elif ch == '0':
+                        st += '\\0'
+                    elif ch == 'n':
+                        st += '\\n'
+                    elif ch == 'r':
+                        st += '\\r'
+                    elif ch == 't':
+                        st += '\\t'
+                    elif ch == 'f':
+                        st += '\\f'
+                    elif ch == 'v':
+                        st += '\\v'
+
+                    # unescape special single characters like . so that they are interpreted literally
+                    elif ch in REGEXP_SPECIAL_SINGLE:
+                        st += '\\' + ch
+
+                    # character groups
+                    elif ch == 'b':
+                        st += '\\b'
+                    elif ch == 'B':
+                        st += '\\B'
+                    elif ch == 'w':
+                        st += '\\w'
+                    elif ch == 'W':
+                        st += '\\W'
+                    elif ch == 'd':
+                        st += '\\d'
+                    elif ch == 'D':
+                        st += '\\D'
+                    elif ch == 's':
+                        st += template % u' \f\n\r\t\v\u00a0\u1680\u180e\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'
+                    elif ch == 'S':
+                        st += template % u'\u0000-\u0008\u000e-\u001f\u0021-\u009f\u00a1-\u167f\u1681-\u180d\u180f-\u1fff\u200b-\u2027\u202a-\u202e\u2030-\u205e\u2060-\u2fff\u3001-\ufefe\uff00-\uffff'
+                    else:
+                        if isDecimalDigit(ch):
+                            num = ch
+                            while self.index < self.length and isDecimalDigit(self.source[self.index]):
+                                num += self.source[self.index]
+                                self.index += 1
+                            st += '\\' + num
+
+                        else:
+                            st += ch  # DONT ESCAPE!!!
+                else:
+                    self.lineNumber += 1
+                    if (ch == '\r' and self.source[self.index] == '\n'):
+                        self.index += 1
+                    self.lineStart = self.index
+            else:
+                if ch == '[':
+                    inside_square = True
+                elif ch == ']':
+                    inside_square = False
+                st += ch
+        # print string, 'was transformed to', st
+        return st
+
     def scanStringLiteral(self):
         st = ''
         octal = False
 
         quote = self.source[self.index]
-        assert quote == '\''or quote == '"', 'String literal must starts with a quote'
+        assert quote == '\'' or quote == '"', 'String literal must starts with a quote'
         start = self.index;
         self.index += 1
 
@@ -512,26 +609,26 @@ class PyJsParser:
                         else:
                             unescaped = self.scanHexEscape(ch)
                             if (not unescaped):
-                                self.throwUnexpectedToken() # with throw I don't know whats the difference
+                                self.throwUnexpectedToken()  # with throw I don't know whats the difference
                             st += unescaped
-                    elif ch=='n':
+                    elif ch == 'n':
                         st += '\n';
-                    elif ch=='r':
+                    elif ch == 'r':
                         st += '\r';
-                    elif ch=='t':
+                    elif ch == 't':
                         st += '\t';
-                    elif ch=='b':
+                    elif ch == 'b':
                         st += '\b';
-                    elif ch=='f':
+                    elif ch == 'f':
                         st += '\f';
-                    elif ch=='v':
+                    elif ch == 'v':
                         st += '\x0B'
-                    elif ch in '89':
-                        self.throwUnexpectedToken() # again with throw....
+                    # elif ch in '89':
+                    #    self.throwUnexpectedToken() # again with throw....
                     else:
                         if isOctalDigit(ch):
                             octToDec = self.octalToDecimal(ch)
-                            octal = octToDec['octal'] or octal
+                            octal = octToDec.get('octal') or octal
                             st += unichr(octToDec['code'])
                         else:
                             st += ch
@@ -560,7 +657,7 @@ class PyJsParser:
         terminated = False
         tail = False
         start = self.index
-        head = (self.source[self.index]=='`')
+        head = (self.source[self.index] == '`')
         rawOffset = 2
 
         self.index += 1
@@ -584,11 +681,11 @@ class PyJsParser:
                 ch = self.source[self.index]
                 self.index += 1
                 if (not isLineTerminator(ch)):
-                    if ch=='n':
+                    if ch == 'n':
                         cooked += '\n'
-                    elif ch=='r':
+                    elif ch == 'r':
                         cooked += '\r'
-                    elif ch=='t':
+                    elif ch == 't':
                         cooked += '\t'
                     elif ch in 'ux':
                         if (self.source[self.index] == '{'):
@@ -602,11 +699,11 @@ class PyJsParser:
                             else:
                                 self.index = restore
                                 cooked += ch
-                    elif ch=='b':
+                    elif ch == 'b':
                         cooked += '\b'
-                    elif ch=='f':
+                    elif ch == 'f':
                         cooked += '\f'
-                    elif ch=='v':
+                    elif ch == 'v':
                         cooked += '\v'
                     else:
                         if (ch == '0'):
@@ -626,7 +723,7 @@ class PyJsParser:
                     self.lineStart = self.index
             elif (isLineTerminator(ch)):
                 self.lineNumber += 1
-                if (ch == '\r' and self.source[self.index] =='\n'):
+                if (ch == '\r' and self.source[self.index] == '\n'):
                     self.index += 1
                 self.lineStart = self.index
                 cooked += '\n'
@@ -642,7 +739,7 @@ class PyJsParser:
             'type': Token.Template,
             'value': {
                 'cooked': cooked,
-                'raw': self.source[start + 1, self.index - rawOffset]},
+                'raw': self.source[start + 1:self.index - rawOffset]},
             'head': head,
             'tail': tail,
             'lineNumber': self.lineNumber,
@@ -651,7 +748,7 @@ class PyJsParser:
             'end': self.index}
 
     def testRegExp(self, pattern, flags):
-        #todo: you should return python regexp object
+        # todo: you should return python regexp object
         return (pattern, flags)
 
     def scanRegExpBody(self):
@@ -753,9 +850,9 @@ class PyJsParser:
         return self.scanRegExp()
 
     def isIdentifierName(self, token):
-        return token['type'] in {1,3,4,5}
+        return token['type'] in {1, 3, 4, 5}
 
-    #def advanceSlash(self): ???
+    # def advanceSlash(self): ???
 
     def advance(self):
         if (self.index >= self.length):
@@ -791,7 +888,7 @@ class PyJsParser:
             return self.scanNumericLiteral()
 
         # Slash (/) U+002F can also start a regex.
-        #if (extra.tokenize && ch == 0x2F):
+        # if (extra.tokenize && ch == 0x2F):
         #    return advanceSlash();
 
         # Template literals start with ` (U+0060) for template head
@@ -800,7 +897,7 @@ class PyJsParser:
             return self.scanTemplate()
         return self.scanPunctuator();
 
-    #def collectToken(self):
+    # def collectToken(self):
     #    loc = {
     #        'start': {
     #            'line': self.lineNumber,
@@ -841,7 +938,7 @@ class PyJsParser:
         self.startLineNumber = self.lineNumber
         self.startLineStart = self.lineStart
 
-        self.lookahead =  self.advance()
+        self.lookahead = self.advance()
         self.scanning = False
         return token
 
@@ -861,15 +958,15 @@ class PyJsParser:
         self.lookahead = self.advance()
         self.scanning = False
 
-
     def createError(self, line, pos, description):
         self.log_err_case()
-        error = JsSyntaxError('Line ' + unicode(line) + ': ' + unicode(description));
-        error.index = pos
-        error.lineNumber = line
-        error.column = pos - (self.lineStart if self.scanning else self.lastLineStart) + 1
-        error.description = description
-        return error
+        from js2py.base import ERRORS, Js, JsToPyException
+        error = ERRORS['SyntaxError']('Line ' + unicode(line) + ': ' + unicode(description))
+        error.put('index', Js(pos))
+        error.put('lineNumber', Js(line))
+        error.put('column', Js(pos - (self.lineStart if self.scanning else self.lastLineStart) + 1))
+        error.put('description', Js(description))
+        return JsToPyException(error)
 
     # Throw an exception
 
@@ -887,24 +984,31 @@ class PyJsParser:
         if (token):
             typ = token['type']
             if (not message):
-                if typ == Token.EOF: msg = Messages.UnexpectedEOS
-                elif (typ == Token.Identifier): msg = Messages.UnexpectedIdentifier
-                elif (typ == Token.NumericLiteral): msg = Messages.UnexpectedNumber
-                elif (typ == Token.StringLiteral): msg = Messages.UnexpectedString
-                elif (typ == Token.Template): msg = Messages.UnexpectedTemplate
-                else: msg = Messages.UnexpectedToken;
+                if typ == Token.EOF:
+                    msg = Messages.UnexpectedEOS
+                elif (typ == Token.Identifier):
+                    msg = Messages.UnexpectedIdentifier
+                elif (typ == Token.NumericLiteral):
+                    msg = Messages.UnexpectedNumber
+                elif (typ == Token.StringLiteral):
+                    msg = Messages.UnexpectedString
+                elif (typ == Token.Template):
+                    msg = Messages.UnexpectedTemplate
+                else:
+                    msg = Messages.UnexpectedToken;
                 if (typ == Token.Keyword):
                     if (isFutureReservedWord(token['value'])):
                         msg = Messages.UnexpectedReserved
                     elif (self.strict and isStrictModeReservedWord(token['value'])):
                         msg = Messages.StrictReservedWord
-            value = token['value']['raw'] if (typ == Token.Template)  else token['value']
+            value = token['value']['raw'] if (typ == Token.Template)  else token.get('value')
         else:
             value = 'ILLEGAL'
         msg = msg.replace('%s', unicode(value))
 
         return (self.createError(token['lineNumber'], token['start'], msg) if (token and token.get('lineNumber')) else
-               self.createError(self.lineNumber if self.scanning else self.lastLineNumber, self.index if self.scanning else self.lastIndex, msg))
+                self.createError(self.lineNumber if self.scanning else self.lastLineNumber,
+                                 self.index if self.scanning else self.lastIndex, msg))
 
     def throwUnexpectedToken(self, token={}, message=''):
         raise self.unexpectedTokenError(token, message)
@@ -920,8 +1024,7 @@ class PyJsParser:
         if (token['type'] != Token.Punctuator or token['value'] != value):
             self.throwUnexpectedToken(token)
 
-
-    #/**
+    # /**
     # * @name expectCommaSeparator
     # * @description Quietly expect a comma when in tolerant mode, otherwise delegates
     # * to <code>expect(value)</code>
@@ -937,7 +1040,6 @@ class PyJsParser:
         token = self.lex();
         if (token['type'] != Token.Keyword or token['value'] != keyword):
             self.throwUnexpectedToken(token)
-
 
     # Return true if the next token matches the specified punctuator.
 
@@ -961,7 +1063,7 @@ class PyJsParser:
         if (self.lookahead['type'] != Token.Punctuator):
             return False;
         op = self.lookahead['value']
-        return op in {'=','*=', '/=','%=', '+=', '-=', '<<=', '>>=', '>>>=', '&=' , '^=' , '|='}
+        return op in {'=', '*=', '/=', '%=', '+=', '-=', '<<=', '>>=', '>>>=', '&=', '^=', '|='}
 
     def consumeSemicolon(self):
         # Catch the very common case first: immediately a semicolon (U+003B).
@@ -1040,7 +1142,6 @@ class PyJsParser:
         self.isAssignmentTarget = self.isAssignmentTarget and oldIsAssignmentTarget
         self.firstCoverInitializedNameError = oldFirstCoverInitializedNameError or self.firstCoverInitializedNameError
         return result
-
 
     def parseArrayPattern(self):
         node = Node()
@@ -1175,12 +1276,12 @@ class PyJsParser:
         typ = token['type']
 
         if typ in [Token.StringLiteral, Token.NumericLiteral]:
-            if self.strict and token['octal']:
+            if self.strict and token.get('octal'):
                 self.tolerateUnexpectedToken(token, Messages.StrictOctalLiteral);
             return node.finishLiteral(token);
-        elif typ in  {Token.Identifier, Token.BooleanLiteral, Token.NullLiteral, Token.Keyword}:
+        elif typ in {Token.Identifier, Token.BooleanLiteral, Token.NullLiteral, Token.Keyword}:
             return node.finishIdentifier(token['value']);
-        elif typ==Token.Punctuator:
+        elif typ == Token.Punctuator:
             if (token['value'] == '['):
                 expr = self.isolateCoverGrammar(self.parseAssignmentExpression)
                 self.expect(']')
@@ -1189,7 +1290,8 @@ class PyJsParser:
 
     def lookaheadPropertyName(self):
         typ = self.lookahead['type']
-        if typ in  {Token.Identifier, Token.StringLiteral, Token.BooleanLiteral, Token.NullLiteral, Token.NumericLiteral, Token.Keyword}:
+        if typ in {Token.Identifier, Token.StringLiteral, Token.BooleanLiteral, Token.NullLiteral, Token.NumericLiteral,
+                   Token.Keyword}:
             return true
         if typ == Token.Punctuator:
             return self.lookahead['value'] == '['
@@ -1208,7 +1310,7 @@ class PyJsParser:
             if (token['value'] == 'get' and self.lookaheadPropertyName()):
                 computed = self.match('[');
                 key = self.parseObjectPropertyKey()
-                methodNode =  Node()
+                methodNode = Node()
                 self.expect('(')
                 self.expect(')')
                 value = self.parsePropertyFunction(methodNode, {
@@ -1222,7 +1324,7 @@ class PyJsParser:
             elif (token['value'] == 'set' and self.lookaheadPropertyName()):
                 computed = self.match('[')
                 key = self.parseObjectPropertyKey()
-                methodNode =  Node()
+                methodNode = Node()
                 self.expect('(')
 
                 options = {
@@ -1249,7 +1351,7 @@ class PyJsParser:
 
     def checkProto(self, key, computed, hasProto):
         if (computed == false and (key['type'] == Syntax.Identifier and key.name == '__proto__' or
-            key['type'] == Syntax.Literal and key.value == '__proto__')):
+                                               key['type'] == Syntax.Literal and key.value == '__proto__')):
             if (hasProto.value):
                 self.tolerateError(Messages.DuplicateProtoProperty);
             else:
@@ -1267,7 +1369,7 @@ class PyJsParser:
             self.checkProto(maybeMethod.key, maybeMethod.computed, hasProto);
             return maybeMethod;
 
-        #// init property or short hand property.
+        # // init property or short hand property.
         self.checkProto(key, computed, hasProto);
 
         if (self.match(':')):
@@ -1281,7 +1383,7 @@ class PyJsParser:
                 self.lex();
                 value = self.isolateCoverGrammar(self.parseAssignmentExpression);
                 return node.finishProperty('init', key, computed,
-                    WrappingNode(token).finishAssignmentPattern(key, value), false, true)
+                                           WrappingNode(token).finishAssignmentPattern(key, value), false, true)
             return node.finishProperty('init', key, computed, key, false, true)
         self.throwUnexpectedToken(self.lookahead)
 
@@ -1320,7 +1422,7 @@ class PyJsParser:
             expr['type'] = Syntax.AssignmentPattern;
             self.reinterpretExpressionAsPattern(expr['left'])
         else:
-            #// Allow other node type for tolerant parsing.
+            # // Allow other node type for tolerant parsing.
             return
 
     def parseTemplateElement(self, option):
@@ -1331,18 +1433,19 @@ class PyJsParser:
         node = Node();
         token = self.lex();
 
-        return node.finishTemplateElement({ 'raw': token['value']['raw'], 'cooked': token['value']['cooked'] }, token['tail'])
+        return node.finishTemplateElement({'raw': token['value']['raw'], 'cooked': token['value']['cooked']},
+                                          token['tail'])
 
     def parseTemplateLiteral(self):
         node = Node()
 
-        quasi = self.parseTemplateElement({ 'head': true })
+        quasi = self.parseTemplateElement({'head': true})
         quasis = [quasi]
         expressions = []
 
         while (not quasi['tail']):
             expressions.append(self.parseExpression());
-            quasi = self.parseTemplateElement({ 'head': false });
+            quasi = self.parseTemplateElement({'head': false});
             quasis.append(quasi)
         return node.finishTemplateLiteral(quasis, expressions)
 
@@ -1425,7 +1528,7 @@ class PyJsParser:
             return self.inheritCoverGrammar(self.parseObjectInitialiser)
 
         typ = self.lookahead['type']
-        node =  Node();
+        node = Node();
 
         if (typ == Token.Identifier):
             expr = node.finishIdentifier(self.lex()['value']);
@@ -1457,7 +1560,7 @@ class PyJsParser:
         elif (self.match('/') or self.match('/=')):
             self.isAssignmentTarget = self.isBindingElement = false;
             self.index = self.startIndex;
-            token = self.scanRegExp();   # hehe, here you are!
+            token = self.scanRegExp();  # hehe, here you are!
             self.lex();
             expr = node.finishLiteral(token);
         elif (typ == Token.Template):
@@ -1482,7 +1585,7 @@ class PyJsParser:
         return args;
 
     def parseNonComputedProperty(self):
-        node =  Node()
+        node = Node()
 
         token = self.lex();
 
@@ -1525,7 +1628,8 @@ class PyJsParser:
             if (not self.match('(') and not self.match('.') and not self.match('[')):
                 self.throwUnexpectedToken(self.lookahead);
         else:
-            expr = self.inheritCoverGrammar(self.parseNewExpression if self.matchKeyword('new') else self.parsePrimaryExpression)
+            expr = self.inheritCoverGrammar(
+                self.parseNewExpression if self.matchKeyword('new') else self.parsePrimaryExpression)
         while True:
             if (self.match('.')):
                 self.isBindingElement = false;
@@ -1563,7 +1667,8 @@ class PyJsParser:
             if (not self.match('[') and not self.match('.')):
                 self.throwUnexpectedToken(self.lookahead)
         else:
-            expr = self.inheritCoverGrammar(self.parseNewExpression if self.matchKeyword('new') else self.parsePrimaryExpression);
+            expr = self.inheritCoverGrammar(
+                self.parseNewExpression if self.matchKeyword('new') else self.parsePrimaryExpression);
 
         while True:
             if (self.match('[')):
@@ -1620,11 +1725,11 @@ class PyJsParser:
                 self.tolerateError(Messages.InvalidLHSInAssignment)
             expr = WrappingNode(startToken).finishUnaryExpression(token['value'], expr)
             self.isAssignmentTarget = self.isBindingElement = false
-        elif (self.match('+') or self.match('-') or  self.match('~') or self.match('!')):
+        elif (self.match('+') or self.match('-') or self.match('~') or self.match('!')):
             startToken = self.lookahead;
             token = self.lex();
             expr = self.inheritCoverGrammar(self.parseUnaryExpression);
-            expr =  WrappingNode(startToken).finishUnaryExpression(token['value'], expr)
+            expr = WrappingNode(startToken).finishUnaryExpression(token['value'], expr)
             self.isAssignmentTarget = self.isBindingElement = false;
         elif (self.matchKeyword('delete') or self.matchKeyword('void') or self.matchKeyword('typeof')):
             startToken = self.lookahead;
@@ -1700,10 +1805,9 @@ class PyJsParser:
         expr = stack[i]
         markers.pop()
         while (i > 1):
-            expr =  WrappingNode(markers.pop()).finishBinaryExpression(stack[i - 1]['value'], stack[i - 2], expr);
+            expr = WrappingNode(markers.pop()).finishBinaryExpression(stack[i - 1]['value'], stack[i - 2], expr);
             i -= 2
         return expr
-
 
     # 11.12 Conditional Operator
 
@@ -1802,7 +1906,8 @@ class PyJsParser:
 
         self.strict = previousStrict
 
-        return node.finishArrowFunctionExpression(options['params'], options['defaults'], body, body.type != Syntax.BlockStatement)
+        return node.finishArrowFunctionExpression(options['params'], options['defaults'], body,
+                                                  body.type != Syntax.BlockStatement)
 
     # 11.13 Assignment Operators
 
@@ -1834,10 +1939,9 @@ class PyJsParser:
                 self.reinterpretExpressionAsPattern(expr)
             token = self.lex();
             right = self.isolateCoverGrammar(self.parseAssignmentExpression)
-            expr =  WrappingNode(startToken).finishAssignmentExpression(token['value'], expr, right);
+            expr = WrappingNode(startToken).finishAssignmentExpression(token['value'], expr, right);
             self.firstCoverInitializedNameError = null
         return expr
-
 
     # 11.14 Comma Operator
 
@@ -1861,7 +1965,7 @@ class PyJsParser:
     def parseStatementListItem(self):
         if (self.lookahead['type'] == Token.Keyword):
             val = (self.lookahead['value'])
-            if val=='export':
+            if val == 'export':
                 if (self.sourceType != 'module'):
                     self.tolerateUnexpectedToken(self.lookahead, Messages.IllegalExportDeclaration)
                 return self.parseExportDeclaration();
@@ -1875,9 +1979,17 @@ class PyJsParser:
                 return self.parseFunctionDeclaration(Node());
             elif val == 'class':
                 return self.parseClassDeclaration();
+            elif ENABLE_PYIMPORT and val == 'pyimport':  # <<<<< MODIFIED HERE
+                return self.parsePyimportStatement()
         return self.parseStatement();
-    
-    
+
+    def parsePyimportStatement(self):
+        n = Node()
+        self.lex()
+        n.finishPyimport(self.parseVariableIdentifier())
+        self.consumeSemicolon()
+        return n
+
     def parseStatementList(self):
         list = [];
         while (self.startIndex < self.length):
@@ -1887,7 +1999,7 @@ class PyJsParser:
         return list
 
     def parseBlock(self):
-        node =  Node();
+        node = Node();
 
         self.expect('{');
 
@@ -1950,7 +2062,6 @@ class PyJsParser:
 
         return node.finishVariableDeclaration(declarations)
 
-
     def parseLexicalBinding(self, kind, options):
         init = null
         node = Node()
@@ -1968,7 +2079,7 @@ class PyJsParser:
         elif ((not options['inFor'] and d.type != Syntax.Identifier) or self.match('=')):
             self.expect('=');
             init = self.isolateCoverGrammar(self.parseAssignmentExpression);
-        return node.finishVariableDeclarator(id, init)
+        return node.finishVariableDeclarator(d, init)
 
     def parseBindingList(self, kind, options):
         list = [];
@@ -2096,7 +2207,7 @@ class PyJsParser:
             self.lex()
         else:
             if (self.matchKeyword('var')):
-                init =  Node()
+                init = Node()
                 self.lex()
 
                 self.state['allowIn'] = false;
@@ -2159,7 +2270,6 @@ class PyJsParser:
             if (not self.match(')')):
                 update = self.parseExpression();
 
-
         self.expect(')');
 
         oldInIteration = self.state['inIteration']
@@ -2169,8 +2279,8 @@ class PyJsParser:
 
         self.state['inIteration'] = oldInIteration;
 
-        return node.finishForStatement(init, test, update, body)  if ('left' not in locals()) else node.finishForInStatement(left, right, body);
-
+        return node.finishForStatement(init, test, update, body) if (
+        'left' not in locals()) else node.finishForInStatement(left, right, body);
 
     # 12.7 The continue statement
 
@@ -2194,14 +2304,13 @@ class PyJsParser:
             label = self.parseVariableIdentifier();
 
             key = '$' + label.name;
-            if not key in self.state['labelSet']:    # todo make sure its correct!
+            if not key in self.state['labelSet']:  # todo make sure its correct!
                 self.throwError(Messages.UnknownLabel, label.name);
         self.consumeSemicolon()
 
         if (label == null and not self.state['inIteration']):
             self.throwError(Messages.IllegalContinue)
         return node.finishContinueStatement(label)
-
 
     # 12.8 The break statement
 
@@ -2277,7 +2386,6 @@ class PyJsParser:
         body = self.parseStatement();
 
         return node.finishWithStatement(obj, body);
-
 
     # 12.10 The swith statement
 
@@ -2373,7 +2481,6 @@ class PyJsParser:
         self.expect(')');
         body = self.parseBlock();
         return node.finishCatchClause(param, body);
-
 
     def parseTryStatement(self, node):
         handler = null
@@ -2489,7 +2596,7 @@ class PyJsParser:
             if (statement.expression.type != Syntax.Literal):
                 # this is not directive
                 break
-            directive = self.source[token['start']+1 : token['end']-1]
+            directive = self.source[token['start'] + 1: token['end'] - 1]
             if (directive == 'use strict'):
                 self.strict = true;
                 if (firstRestricted):
@@ -2541,7 +2648,7 @@ class PyJsParser:
                 options['firstRestricted'] = param;
                 options['message'] = Messages.StrictReservedWord;
             elif key in options['paramSet']:
-                options['firstRestricted']= param
+                options['firstRestricted'] = param
                 options['message'] = Messages.StrictParamDupe;
         options['paramSet'][key] = true
 
@@ -2591,7 +2698,6 @@ class PyJsParser:
             'stricted': options.get('stricted'),
             'firstRestricted': options.get('firstRestricted'),
             'message': options.get('message')}
-
 
     def parseFunctionDeclaration(self, node, identifierIsOptional=None):
         d = null
@@ -2683,7 +2789,6 @@ class PyJsParser:
     def parseClassDeclaration(self):
         raise NotImplementedError()
 
-
     # 14 Program
 
     def parseScriptBody(self):
@@ -2710,7 +2815,7 @@ class PyJsParser:
         while (self.startIndex < self.length):
             statement = self.parseStatementListItem();
             # istanbul ignore if
-            if (statement is  None):
+            if (statement is None):
                 break
             body.append(statement);
         return body;
@@ -2728,7 +2833,7 @@ class PyJsParser:
             raise NotImplementedError('Options not implemented! You can only use default settings.')
 
         self.clean()
-        self.source = unicode(code) + '// END' # I have to add it in order not to check for EOF every time
+        self.source = unicode(code) + ' \n ; //END'  # I have to add it in order not to check for EOF every time
         self.index = 0
         self.lineNumber = 1 if len(self.source) > 0 else 0
         self.lineStart = 0
@@ -2752,8 +2857,9 @@ class PyJsParser:
         return node_to_dict(program)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     import time
+
     test_path = None
     if test_path:
         f = open(test_path, 'rb')
@@ -2764,17 +2870,14 @@ if __name__=='__main__':
     p = PyJsParser()
     t = time.time()
     res = p.parse(x)
-    dt = time.time() - t+ 0.000000001
+    dt = time.time() - t + 0.000000001
     if test_path:
         print(len(res))
     else:
-        from pprint import pprint
         pprint(res)
-
     print()
-    print('Parsed everyting in', round(dt,5), 'seconds.')
-    print('Thats %d characters per second' % int(len(x)/dt))
-
+    print('Parsed everyting in', round(dt, 5), 'seconds.')
+    print('Thats %d characters per second' % int(len(x) / dt))
 
 
 
