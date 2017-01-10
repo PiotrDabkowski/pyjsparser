@@ -962,12 +962,15 @@ class PyJsParser:
         self.scanning = False
 
     def createError(self, line, pos, description):
+        global ENABLE_PYIMPORT
         if ENABLE_JS2PY_ERRORS:
+            old_pyimport = ENABLE_PYIMPORT  # ENABLE_PYIMPORT will be affected by js2py import
             self.log_err_case()
             try:
                 from js2py.base import ERRORS, Js, JsToPyException
             except:
                 raise Exception("ENABLE_JS2PY_ERRORS was set to True, but Js2Py was not found!")
+            ENABLE_PYIMPORT = old_pyimport
             error = ERRORS['SyntaxError']('Line ' + unicode(line) + ': ' + unicode(description))
             error.put('index', Js(pos))
             error.put('lineNumber', Js(line))
@@ -1360,12 +1363,12 @@ class PyJsParser:
         return null;
 
     def checkProto(self, key, computed, hasProto):
-        if (computed == false and (key['type'] == Syntax.Identifier and key.name == '__proto__' or
-                                               key['type'] == Syntax.Literal and key.value == '__proto__')):
-            if (hasProto.value):
+        if (computed == false and (key['type'] == Syntax.Identifier and key['name'] == '__proto__' or
+                                               key['type'] == Syntax.Literal and key['value'] == '__proto__')):
+            if (hasProto['value']):
                 self.tolerateError(Messages.DuplicateProtoProperty);
             else:
-                hasProto.value = true;
+                hasProto['value'] = true;
 
     def parseObjectProperty(self, hasProto):
         token = self.lookahead
@@ -1376,7 +1379,7 @@ class PyJsParser:
         maybeMethod = self.tryParseMethodDefinition(token, key, computed, node)
 
         if (maybeMethod):
-            self.checkProto(maybeMethod.key, maybeMethod.computed, hasProto);
+            self.checkProto(maybeMethod['key'], maybeMethod['computed'], hasProto);
             return maybeMethod;
 
         # // init property or short hand property.
@@ -1861,13 +1864,12 @@ class PyJsParser:
         else:
             assert typ == Syntax.ObjectPattern, 'Invalid type'
             for i in xrange(len(param.properties)):
-                self.checkPatternParam(options, param.properties[i].value);
+                self.checkPatternParam(options, param.properties[i]['value']);
 
     def reinterpretAsCoverFormalsList(self, expr):
         defaults = [];
         defaultCount = 0;
         params = [expr];
-
         typ = expr.type
         if typ == Syntax.Identifier:
             pass
@@ -1994,6 +1996,7 @@ class PyJsParser:
         return self.parseStatement();
 
     def parsePyimportStatement(self):
+        print(ENABLE_PYIMPORT)
         assert ENABLE_PYIMPORT
         n = Node()
         self.lex()
