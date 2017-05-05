@@ -270,7 +270,7 @@ class PyJsParser:
             type = Token.Keyword
         elif (d == 'null'):
             type = Token.NullLiteral
-        elif (i == 'true' or d == 'false'):
+        elif (d == 'true' or d == 'false'):
             type = Token.BooleanLiteral
         else:
             type = Token.Identifier;
