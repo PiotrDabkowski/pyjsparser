@@ -963,22 +963,11 @@ class PyJsParser:
 
     def createError(self, line, pos, description):
         global ENABLE_PYIMPORT
+        msg = 'Line ' + unicode(line) + ': ' + unicode(description)
         if ENABLE_JS2PY_ERRORS:
-            old_pyimport = ENABLE_PYIMPORT  # ENABLE_PYIMPORT will be affected by js2py import
-            self.log_err_case()
-            try:
-                from js2py.base import ERRORS, Js, JsToPyException
-            except:
-                raise Exception("ENABLE_JS2PY_ERRORS was set to True, but Js2Py was not found!")
-            ENABLE_PYIMPORT = old_pyimport
-            error = ERRORS['SyntaxError']('Line ' + unicode(line) + ': ' + unicode(description))
-            error.put('index', Js(pos))
-            error.put('lineNumber', Js(line))
-            error.put('column', Js(pos - (self.lineStart if self.scanning else self.lastLineStart) + 1))
-            error.put('description', Js(description))
-            return JsToPyException(error)
+            return ENABLE_JS2PY_ERRORS(msg)
         else:
-            return JsSyntaxError('Line ' + unicode(line) + ': ' + unicode(description))
+            return JsSyntaxError(msg)
 
 
     # Throw an exception
