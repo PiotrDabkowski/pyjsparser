@@ -94,9 +94,16 @@ class PyJsParser:
                 self.lineNumber += 1
                 self.hasLineTerminator = True
                 self.lineStart = self.index
-                return
+                return {
+                    'type': 'Line',
+                    'value': self.source[start + offset:self.index-2],
+                    'leading': True,
+                    'trailing': False,
+                    'loc': None,
+                }
 
     def skipMultiLineComment(self):
+        start = self.index
         while self.index < self.length:
             ch = ord(self.source[self.index])
             if isLineTerminator(ch):
@@ -110,7 +117,13 @@ class PyJsParser:
                 # Block comment ends with '*/'.
                 if ord(self.source[self.index + 1]) == 0x2F:
                     self.index += 2
-                    return
+                    return {
+                        'type': 'Block',
+                        'value': self.source[start:self.index-2],
+                        'leading': True,
+                        'trailing': False,
+                        'loc': None,
+                    }
                 self.index += 1
             else:
                 self.index += 1
@@ -118,7 +131,9 @@ class PyJsParser:
 
     def skipComment(self):
         self.hasLineTerminator = False
+        startIndex = self.index
         start = (self.index == 0)
+        comments = []
         while self.index < self.length:
             ch = ord(self.source[self.index])
             if isWhiteSpace(ch):
@@ -135,11 +150,11 @@ class PyJsParser:
                 ch = ord(self.source[self.index + 1])
                 if (ch == 0x2F):
                     self.index += 2
-                    self.skipSingleLineComment(2)
+                    comments.append(self.skipSingleLineComment(2))
                     start = True
                 elif (ch == 0x2A):  # U+002A is '*'
                     self.index += 2
-                    self.skipMultiLineComment()
+                    comments.append(self.skipMultiLineComment())
                 else:
                     break
             elif (start and ch == 0x2D):  # U+002D is '-'
@@ -159,6 +174,7 @@ class PyJsParser:
                     break
             else:
                 break
+        return filter(None, comments)
 
     def scanHexEscape(self, prefix):
         code = 0
@@ -828,10 +844,10 @@ class PyJsParser:
             'value': flags,
             'literal': st}
 
-    def scanRegExp(self):
+    def scanRegExp(self, comments):
         self.scanning = True
         self.lookahead = None
-        self.skipComment()
+        comments.extend(self.skipComment())
         start = self.index
 
         body = self.scanRegExpBody()
@@ -846,16 +862,21 @@ class PyJsParser:
                 'flags': flags['value']
             },
             'start': start,
-            'end': self.index}
+            'end': self.index,
+            'comments': comments}
 
     def collectRegex(self):
-        self.skipComment();
-        return self.scanRegExp()
+        return self.scanRegExp(self.skipComment())
 
     def isIdentifierName(self, token):
         return token['type'] in (1, 3, 4, 5)
 
     # def advanceSlash(self): ???
+
+    def advanceWithComments(self, comments):
+        token = self.advance()
+        token['comments'] = comments
+        return token
 
     def advance(self):
         if (self.index >= self.length):
@@ -933,7 +954,7 @@ class PyJsParser:
         self.lastLineNumber = self.lineNumber
         self.lastLineStart = self.lineStart
 
-        self.skipComment()
+        comments = self.skipComment()
 
         token = self.lookahead
 
@@ -941,14 +962,14 @@ class PyJsParser:
         self.startLineNumber = self.lineNumber
         self.startLineStart = self.lineStart
 
-        self.lookahead = self.advance()
+        self.lookahead = self.advanceWithComments(comments)
         self.scanning = False
         return token
 
     def peek(self):
         self.scanning = True
 
-        self.skipComment()
+        comments = self.skipComment()
 
         self.lastIndex = self.index
         self.lastLineNumber = self.lineNumber
@@ -958,7 +979,7 @@ class PyJsParser:
         self.startLineNumber = self.lineNumber
         self.startLineStart = self.lineStart
 
-        self.lookahead = self.advance()
+        self.lookahead = self.advanceWithComments(comments)
         self.scanning = False
 
     def createError(self, line, pos, description):
@@ -1362,6 +1383,7 @@ class PyJsParser:
     def parseObjectProperty(self, hasProto):
         token = self.lookahead
         node = Node()
+        node.comments = self.lookahead.get('comments', [])
 
         computed = self.match('[');
         key = self.parseObjectPropertyKey();
@@ -1393,9 +1415,8 @@ class PyJsParser:
         properties = []
         hasProto = {'value': false}
         node = Node();
-
+        node.comments = self.lookahead.get('comments', [])
         self.expect('{');
-
         while (not self.match('}')):
             properties.append(self.parseObjectProperty(hasProto));
 
@@ -1531,6 +1552,7 @@ class PyJsParser:
 
         typ = self.lookahead['type']
         node = Node();
+        node.comments = self.lookahead.get('comments', [])
 
         if (typ == Token.Identifier):
             expr = node.finishIdentifier(self.lex()['value']);
@@ -1562,7 +1584,7 @@ class PyJsParser:
         elif (self.match('/') or self.match('/=')):
             self.isAssignmentTarget = self.isBindingElement = false;
             self.index = self.startIndex;
-            token = self.scanRegExp();  # hehe, here you are!
+            token = self.scanRegExp([]);  # hehe, here you are!
             self.lex();
             expr = node.finishLiteral(token);
         elif (typ == Token.Template):
@@ -2029,7 +2051,6 @@ class PyJsParser:
     def parseVariableDeclaration(self):
         init = null
         node = Node();
-
         d = self.parsePattern();
 
         # 12.2.1
@@ -2058,7 +2079,6 @@ class PyJsParser:
 
     def parseVariableStatement(self, node):
         self.expectKeyword('var')
-
         declarations = self.parseVariableDeclarationList()
 
         self.consumeSemicolon()
@@ -2527,6 +2547,7 @@ class PyJsParser:
 
         self.isAssignmentTarget = self.isBindingElement = true;
         node = Node();
+        node.comments = self.lookahead.get('comments', [])
         val = self.lookahead['value']
 
         if (typ == Token.Punctuator):
@@ -2703,6 +2724,7 @@ class PyJsParser:
             'message': options.get('message')}
 
     def parseFunctionDeclaration(self, node, identifierIsOptional=None):
+        node.comments = self.lookahead.get('comments', [])
         d = null
         params = []
         defaults = []
@@ -2748,6 +2770,7 @@ class PyJsParser:
         params = []
         defaults = []
         node = Node();
+        node.comments = self.lookahead.get('comments', [])
         firstRestricted = None
         message = None
 

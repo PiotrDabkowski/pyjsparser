@@ -451,7 +451,6 @@ class BaseNode:
     def __setitem__(self, key, value):
         setattr(self, key, value)
 
-
 class Node(BaseNode):
     pass
 
