@@ -295,9 +295,6 @@ CR = u'\u000D'
 LS = u'\u2028'
 PS = u'\u2029'
 
-U_CATEGORIES = defaultdict(list)
-for c in map(unichr, range(sys.maxunicode + 1)):
-    U_CATEGORIES[unicodedata.category(c)].append(c)
 
 LETTER_CATEGORIES = set(['Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl'])
 

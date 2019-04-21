@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
     name='pyjsparser',
-    version='2.7.0',
+    version='2.7.1',
     packages=['pyjsparser'],
     url='https://github.com/PiotrDabkowski/pyjsparser',
     install_requires=[],
