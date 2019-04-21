@@ -298,16 +298,18 @@ PS = u'\u2029'
 U_CATEGORIES = defaultdict(list)
 for c in map(unichr, range(sys.maxunicode + 1)):
     U_CATEGORIES[unicodedata.category(c)].append(c)
-UNICODE_LETTER = set(U_CATEGORIES['Lu'] + U_CATEGORIES['Ll'] +
-                     U_CATEGORIES['Lt'] + U_CATEGORIES['Lm'] +
-                     U_CATEGORIES['Lo'] + U_CATEGORIES['Nl'])
-UNICODE_COMBINING_MARK = set(U_CATEGORIES['Mn'] + U_CATEGORIES['Mc'])
-UNICODE_DIGIT = set(U_CATEGORIES['Nd'])
-UNICODE_CONNECTOR_PUNCTUATION = set(U_CATEGORIES['Pc'])
-IDENTIFIER_START = UNICODE_LETTER.union(set(
-    ('$', '_', '\\')))  # and some fucking unicode escape sequence
-IDENTIFIER_PART = IDENTIFIER_START.union(UNICODE_COMBINING_MARK).union(UNICODE_DIGIT)\
-    .union(UNICODE_CONNECTOR_PUNCTUATION).union(set((ZWJ, ZWNJ)))
+
+LETTER_CATEGORIES = set(['Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl'])
+
+COMBINING_MARK_CATEGORIES = set(['Mn', 'Mc'])
+DIGIT_CATEGORIES = set(['Nd'])
+CONNECTOR_PUNCTUATION_CATEGORIES = set(['Pc'])
+IDENTIFIER_START_CATEGORIES = LETTER_CATEGORIES.copy()  # and some fucking unicode escape sequence
+IDENTIFIER_PART_CATEGORIES = IDENTIFIER_START_CATEGORIES.union(COMBINING_MARK_CATEGORIES).union(DIGIT_CATEGORIES)\
+    .union(CONNECTOR_PUNCTUATION_CATEGORIES)
+
+EXTRA_IDENTIFIER_START_CHARS = set(('$','_', '\\'))
+EXTRA_IDENTIFIER_PART_CHARS = EXTRA_IDENTIFIER_START_CHARS.union(set((ZWJ, ZWNJ)))
 
 WHITE_SPACE = set((0x20, 0x09, 0x0B, 0x0C, 0xA0, 0x1680, 0x180E, 0x2000,
                    0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007,
@@ -317,11 +319,13 @@ LINE_TERMINATORS = set((0x0A, 0x0D, 0x2028, 0x2029))
 
 
 def isIdentifierStart(ch):
-    return (ch if isinstance(ch, unicode) else unichr(ch)) in IDENTIFIER_START
+    uch = (ch if isinstance(ch, unicode) else unichr(ch))
+    return unicodedata.category(uch) in IDENTIFIER_START_CATEGORIES or uch in EXTRA_IDENTIFIER_START_CHARS
 
 
 def isIdentifierPart(ch):
-    return (ch if isinstance(ch, unicode) else unichr(ch)) in IDENTIFIER_PART
+    uch =  (ch if isinstance(ch, unicode) else unichr(ch))
+    return unicodedata.category(uch) in IDENTIFIER_PART_CATEGORIES or uch in EXTRA_IDENTIFIER_PART_CHARS
 
 
 def isValidIdentifier(name):
