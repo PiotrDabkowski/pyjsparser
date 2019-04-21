@@ -5,9 +5,8 @@ setup(
     version='2.7.0',
     packages=['pyjsparser'],
     url='https://github.com/PiotrDabkowski/pyjsparser',
-    install_requires = [],
+    install_requires=[],
     license='MIT',
     author='Piotr Dabkowski',
     author_email='piodrus@gmail.com',
-    description='Fast javascript parser (based on esprima.js)'
-)
+    description='Fast javascript parser (based on esprima.js)')

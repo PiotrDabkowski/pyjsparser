@@ -3,7 +3,8 @@ from .pyjsparserdata import *
 
 class Ecma51NotSupported(Exception):
     def __init__(self, feature):
-        super(Ecma51NotSupported, self).__init__("%s is not supported by ECMA 5.1." % feature)
+        super(Ecma51NotSupported,
+              self).__init__("%s is not supported by ECMA 5.1." % feature)
         self.feature = feature
 
     def get_feature(self):
@@ -42,7 +43,8 @@ class BaseNode:
         return self
 
     def finishBinaryExpression(self, operator, left, right):
-        self.type = Syntax.LogicalExpression if (operator == '||' or operator == '&&') else Syntax.BinaryExpression
+        self.type = Syntax.LogicalExpression if (
+            operator == '||' or operator == '&&') else Syntax.BinaryExpression
         self.operator = operator
         self.left = left
         self.right = right
@@ -288,7 +290,8 @@ class BaseNode:
         return self
 
     def finishUnaryExpression(self, operator, argument):
-        self.type = Syntax.UpdateExpression if (operator == '++' or operator == '--') else Syntax.UnaryExpression
+        self.type = Syntax.UpdateExpression if (
+            operator == '++' or operator == '--') else Syntax.UnaryExpression
         self.operator = operator
         self.argument = argument
         self.prefix = True
@@ -366,5 +369,3 @@ def node_to_dict(node):  # extremely important for translation speed
     elif not isinstance(node, BaseNode):
         return node
     return dict((k, node_to_dict(v)) for k, v in node.__dict__.items())
-
-
