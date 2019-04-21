@@ -277,6 +277,7 @@ class PyJsParser:
         return {
             'type': type,
             'value': d,
+            'raw': self.source[start:self.index],
             'lineNumber': self.lineNumber,
             'lineStart': self.lineStart,
             'start': start,
@@ -347,6 +348,7 @@ class PyJsParser:
         return {
             'type': Token.NumericLiteral,
             'value': int(number, 16),
+            'raw': self.source[start:self.index],
             'lineNumber': self.lineNumber,
             'lineStart': self.lineStart,
             'start': start,
@@ -372,6 +374,7 @@ class PyJsParser:
         return {
             'type': Token.NumericLiteral,
             'value': int(number, 2),
+            'raw': self.source[start:self.index],
             'lineNumber': self.lineNumber,
             'lineStart': self.lineStart,
             'start': start,
@@ -399,6 +402,7 @@ class PyJsParser:
         return {
             'type': Token.NumericLiteral,
             'value': int(number, 8),
+            'raw': self.source[start:self.index],
             'lineNumber': self.lineNumber,
             'lineStart': self.lineStart,
             'start': start,
@@ -488,6 +492,7 @@ class PyJsParser:
         return {
             'type': Token.NumericLiteral,
             'value': float(number),
+            'raw': self.source[start:self.index],
             'lineNumber': self.lineNumber,
             'lineStart': self.lineStart,
             'start': start,
@@ -649,6 +654,7 @@ class PyJsParser:
         return {
             'type': Token.StringLiteral,
             'value': st,
+            'raw': self.source[start:self.index],
             'octal': octal,
             'lineNumber': self.lineNumber,
             'lineStart': self.startLineStart,
@@ -841,6 +847,7 @@ class PyJsParser:
         return {
             'literal': body['literal'] + flags['literal'],
             'value': value,
+            'raw': self.source[start:self.index],
             'regex': {
                 'pattern': body['value'],
                 'flags': flags['value']
@@ -1146,6 +1153,8 @@ class PyJsParser:
         return result
 
     def parseArrayPattern(self):
+        raise Ecma51NotSupported('ArrayPattern')
+
         node = Node()
         elements = []
         self.expect('[');
@@ -1186,6 +1195,7 @@ class PyJsParser:
         return node.finishProperty('init', key, computed, init, false, false)
 
     def parseObjectPattern(self):
+        raise Ecma51NotSupported('ObjectPattern')
         node = Node()
         properties = []
         self.expect('{')
@@ -1352,6 +1362,7 @@ class PyJsParser:
         return null;
 
     def checkProto(self, key, computed, hasProto):
+        return
         if (computed == false and (key['type'] == Syntax.Identifier and key['name'] == '__proto__' or
                                                key['type'] == Syntax.Literal and key['value'] == '__proto__')):
             if (hasProto['value']):
@@ -1421,6 +1432,7 @@ class PyJsParser:
             for i in xrange(len(expr['properties'])):
                 self.reinterpretExpressionAsPattern(expr['properties'][i]['value']);
         elif Syntax.AssignmentExpression:
+            raise Ecma51NotSupported('AssignmentPattern')
             expr['type'] = Syntax.AssignmentPattern;
             self.reinterpretExpressionAsPattern(expr['left'])
         else:
@@ -1457,6 +1469,7 @@ class PyJsParser:
         self.expect('(');
 
         if (self.match(')')):
+            raise Ecma51NotSupported('ArrowFunction')
             self.lex();
             if (not self.match('=>')):
                 self.expect('=>')
@@ -1487,6 +1500,7 @@ class PyJsParser:
                 self.lex();
 
                 if (self.match('...')):
+                    raise Ecma51NotSupported('ArrowFunction')
                     if (not self.isBindingElement):
                         self.throwUnexpectedToken(self.lookahead)
                     expressions.append(self.parseRestElement())
@@ -1504,6 +1518,7 @@ class PyJsParser:
         self.expect(')')
 
         if (self.match('=>')):
+            raise Ecma51NotSupported('ArrowFunction')
             if (not self.isBindingElement):
                 self.throwUnexpectedToken(self.lookahead);
             if (expr['type'] == Syntax.SequenceExpression):
@@ -1893,6 +1908,7 @@ class PyJsParser:
             'message': options.get('message')}
 
     def parseArrowFunctionExpression(self, options, node):
+        raise Ecma51NotSupported('ArrowFunctionExpression')
         if (self.hasLineTerminator):
             self.tolerateUnexpectedToken(self.lookahead)
         self.expect('=>')
@@ -1919,6 +1935,7 @@ class PyJsParser:
         expr = self.parseConditionalExpression();
 
         if (expr.type == PlaceHolders.ArrowParameterPlaceHolder or self.match('=>')):
+            raise Ecma51NotSupported('ArrowFunctionExpression')
             self.isAssignmentTarget = self.isBindingElement = false;
             lis = self.reinterpretAsCoverFormalsList(expr)
 
@@ -1967,26 +1984,22 @@ class PyJsParser:
         if (self.lookahead['type'] == Token.Keyword):
             val = (self.lookahead['value'])
             if val == 'export':
-                if (self.sourceType != 'module'):
-                    self.tolerateUnexpectedToken(self.lookahead, Messages.IllegalExportDeclaration)
-                return self.parseExportDeclaration();
+                raise Ecma51NotSupported('ExportDeclaration')
             elif val == 'import':
-                if (self.sourceType != 'module'):
-                    self.tolerateUnexpectedToken(self.lookahead, Messages.IllegalImportDeclaration);
-                return self.parseImportDeclaration();
+                raise Ecma51NotSupported('ImportDeclaration')
             elif val == 'const' or val == 'let':
                 return self.parseLexicalDeclaration({'inFor': false});
             elif val == 'function':
                 return self.parseFunctionDeclaration(Node());
             elif val == 'class':
-                return self.parseClassDeclaration();
+                raise Ecma51NotSupported('ClassDeclaration')
             elif ENABLE_PYIMPORT and val == 'pyimport':  # <<<<< MODIFIED HERE
                 return self.parsePyimportStatement()
         return self.parseStatement();
 
     def parsePyimportStatement(self):
-        print(ENABLE_PYIMPORT)
-        assert ENABLE_PYIMPORT
+        if not ENABLE_PYIMPORT:
+            raise Ecma51NotSupported('PyimportStatement')
         n = Node()
         self.lex()
         n.finishPyimport(self.parseVariableIdentifier())
@@ -2106,6 +2119,7 @@ class PyJsParser:
         return node.finishLexicalDeclaration(declarations, kind);
 
     def parseRestElement(self):
+        raise Ecma51NotSupported('RestElement')
         node = Node();
 
         self.lex();
@@ -2787,10 +2801,10 @@ class PyJsParser:
     # todo Translate parse class functions!
 
     def parseClassExpression(self):
-        raise NotImplementedError()
+        raise Ecma51NotSupported('ClassExpression')
 
     def parseClassDeclaration(self):
-        raise NotImplementedError()
+        raise Ecma51NotSupported('ClassDeclaration')
 
     # 14 Program
 
@@ -2855,8 +2869,11 @@ class PyJsParser:
             'curlyStack': [],
             'parenthesizedCount': None}
         self.sourceType = 'script';
-        self.strict = false;
-        program = self.parseProgram();
+        self.strict = false
+        try:
+            program = self.parseProgram()
+        except Ecma51NotSupported as e:
+            raise self.createError(self.lineNumber, self.lastIndex, unicode(e))
         return node_to_dict(program)
 
 

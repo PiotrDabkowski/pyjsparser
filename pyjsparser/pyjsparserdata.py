@@ -119,6 +119,47 @@ syntax= set(('AssignmentExpression',
          'WhileStatement',
          'WithStatement'))
 
+supported_syntax = set(('AssignmentExpression',
+         'ArrayExpression',
+         'BlockStatement',
+         'BinaryExpression',
+         'BreakStatement',
+         'CallExpression',
+         'CatchClause',
+         'ConditionalExpression',
+         'ContinueStatement',
+         'DoWhileStatement',
+         'DebuggerStatement',
+         'EmptyStatement',
+         'ExpressionStatement',
+         'ForStatement',
+         'ForInStatement',
+         'FunctionDeclaration',
+         'FunctionExpression',
+         'Identifier',
+         'IfStatement',
+         'Literal',
+         'LabeledStatement',
+         'LogicalExpression',
+         'MemberExpression',
+         'MethodDefinition',
+         'NewExpression',
+         'ObjectExpression',
+         'Program',
+         'Property',
+         'ReturnStatement',
+         'SequenceExpression',
+         'SwitchCase',
+         'SwitchStatement',
+         'ThisExpression',
+         'ThrowStatement',
+         'TryStatement',
+         'UnaryExpression',
+         'UpdateExpression',
+         'VariableDeclaration',
+         'VariableDeclarator',
+         'WhileStatement',
+         'WithStatement'))
 
 # Error messages should be identical to V8.
 messages = {
@@ -246,6 +287,17 @@ def isIdentifierStart(ch):
 
 def isIdentifierPart(ch):
     return (ch if isinstance(ch, unicode) else unichr(ch))  in IDENTIFIER_PART
+
+def isValidIdentifier(name):
+    if not name or isKeyword(name):
+        return False
+    check = isIdentifierStart
+    for e in name:
+        if not check(e):
+            return False
+        check = isIdentifierPart
+    return True
+
 
 def isWhiteSpace(ch):
     return (ord(ch) if isinstance(ch, unicode) else ch) in WHITE_SPACE
