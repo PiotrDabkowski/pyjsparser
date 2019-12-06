@@ -503,9 +503,15 @@ class PyJsParser:
                 self.throwUnexpectedToken()
         if (isIdentifierStart(self.source[self.index])):
             self.throwUnexpectedToken()
+
+        try:
+            number = int(number) if int(number) == float(number) else float(number)
+        except ValueError:
+            number = float(number)
+
         return {
             'type': Token.NumericLiteral,
-            'value': float(number),
+            'value': number,
             'raw': self.source[start:self.index],
             'lineNumber': self.lineNumber,
             'lineStart': self.lineStart,

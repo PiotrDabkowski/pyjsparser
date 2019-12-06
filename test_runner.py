@@ -150,3 +150,16 @@ def test_ast_to_code(js_test_path):
     actual_restored_code = escodegen_fn(parse_fn(code))
     assert actual_restored_code.rstrip(
         '\n ;') == expected_restored_code.rstrip('\n ;')
+
+
+@pytest.mark.parametrize('js_test_path,typ_expected,value_expected', [
+    ('number.js', int, 48992),
+    ('float.js', float, 48992.1),
+])
+def test_parse_number(js_test_path, typ_expected, value_expected):
+    js_test_path = os.path.join(PASSING_DIR, js_test_path)
+    code = get_js_code(js_test_path)
+    result = pyjsparser.PyJsParser().parse(code)
+    value = result['body'][0]['expression']['right']['properties'][0]['value']['value']
+    assert value == value_expected
+    assert isinstance(value, typ_expected)
